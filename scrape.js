@@ -25,7 +25,8 @@ var rssQ = require('./rssQueue.js');
 var myFs = require('./fsFunctions.js');
 var fs = require('fs');
 
-var rssURL = "https://news.ycombinator.com/rss";
+// var rssURL = "https://news.ycombinator.com/rss";
+var rssURL = "https://news.ycombinator.com/bigrss";
 
 var Schema = mongoose.Schema;
 var db = mongoose.connection;
