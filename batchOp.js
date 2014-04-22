@@ -61,7 +61,7 @@ var addToDict = function (result, master) {
       master._size++;
     }
   }
-  consoleStart(master, "Master Dict words");
+  // consoleStart(master, "Master Dict words");
   return master;
 };
 
@@ -246,6 +246,23 @@ var getPropertyBatch = function (nodeID, reqID, property, isInMasterDict) {
   return {cmd: cmd, reqID: reqID};
 };
 
+var isWordValid = function (word, doc) {
+  if (word === undefined || word === null) {
+    return false;
+
+  } else if (doc.wordtable[word] === undefined || doc.wordtable[word] === null) {
+    return false;
+
+  } else if (typeof doc.wordtable[word] !== 'number') {
+    return false;
+
+  } else {
+    return true;
+  }
+
+  // word !== "" && doc.wordtable[word] !== undefined && doc.wordtable[word] !== null && typeof doc.wordtable[word] === 'number'
+};
+
 var batchInsert = function (doc, requestID, num) {
   requestID = requestID || 0;
   var query = [];
@@ -266,9 +283,10 @@ var batchInsert = function (doc, requestID, num) {
 
   // iterate through words and create queries in order
   for (var word in doc.wordtable) { 
-    if (word !== "" && doc.wordtable[word] !== undefined && doc.wordtable[word] !== null) {
+    // if (word !== "" && doc.wordtable[word] !== undefined && doc.wordtable[word] !== null && typeof doc.wordtable[word] === 'number') {
+      if (isWordValid(word, doc)) {
       // if word is not in master dictionary, insert word node first THEN create relationship
-      var tfValue = (doc.wordtable[word] / (doc.wordcount+1)).toFixed(10);
+      var tfValue = (doc.wordtable[word] / (doc.wordcount)).toFixed(10);
       if (masterDict[word] === undefined) {
         var wordCMD = insertWordBatch(word, requestID);
         query.push(wordCMD.cmd);
@@ -332,12 +350,13 @@ var batchInsert = function (doc, requestID, num) {
     }
 
   }
-  consoleStart(query, "Batch Insert Query " + num);
+  // consoleStart(query, "Batch Insert Query " + num);
   return {query: query, reqID: requestID};
 };
 
 // updates the master dictionary on the server side
 var updateDict = function (newWords, result, num) {
+  // consoleStart(result[0], "update dict - result 0: ");
   num = num || 0;
   for (var i = 0; i < newWords.length; i++) {
     var word = newWords[i].word;
@@ -360,8 +379,8 @@ var updateDict = function (newWords, result, num) {
     // update the size of the dictionary
     masterDict._size++;
   }
-  consoleStart(wordsToAdd, "newly added words: " + num);
-  consoleStart(masterDict, "current master Dict " + num);
+  // consoleStart(wordsToAdd, "newly added words: " + num);
+  // consoleStart(masterDict, "current master Dict " + num);
   // empty the words to be added
   wordsToAdd = [];
   return masterDict;
@@ -385,8 +404,8 @@ var updateDoclist = function (newDocs, result, num) {
     // update the size of the dictionary
     masterDoclist._size++;
   }
-  consoleStart(docsToAdd, "newly added docs: " + num);
-  consoleStart(masterDoclist, "current master doclist " + num);
+  // consoleStart(docsToAdd, "newly added docs: " + num);
+  // consoleStart(masterDoclist, "current master doclist " + num);
   // empty the words to be added
   docsToAdd = [];
   return masterDoclist;
@@ -404,7 +423,7 @@ var updateConnections = function (wToUpdate, results, num) {
     // update master dictionary
     masterDict[word].connections = connections;
   }
-  consoleStart(wToUpdate, "Master Dict updated connections " + num);
+  // consoleStart(wToUpdate, "Master Dict updated connections " + num);
 
   // empty the words to be updated
   wordsToUpdate = [];
@@ -472,7 +491,7 @@ var isDocValid = function (doc, master, minUniqueWords, num) {
 var insertBatchRec = function (result, response, documentList, num) {
   // num is for debugging purposes, shows which queries goes with which results
   num = num || 0;
-  consoleStart(result, "Result after " + num + " insert");
+  // consoleStart(result, "Result after " + num + " insert");
   var doc;
 
   // after words have been successfully inserted into the db, the dictionary has to be udpated
@@ -510,6 +529,7 @@ var insertBatchRec = function (result, response, documentList, num) {
 
   rest.postJson(batchURL, batchInsert(doc, 0, num+1).query)
     .on("complete", function (result, response) {
+      console.log();
       insertBatchRec(result, response, documentList, ++num);
     });
 };

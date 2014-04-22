@@ -25,7 +25,8 @@ var rssQ = require('./rssQueue.js');
 var myFs = require('./fsFunctions.js');
 var fs = require('fs');
 
-var rssURL = "https://news.ycombinator.com/rss";
+// var rssURL = "https://news.ycombinator.com/rss";
+var rssURL = "https://news.ycombinator.com/bigrss";
 
 var Schema = mongoose.Schema;
 var db = mongoose.connection;
@@ -60,7 +61,6 @@ var siteSchema = new Schema({
 var Site = mongoose.model('Site', siteSchema);
 
 // master lists
-var masterRssList = {};
 var scrapeQueue = rssQ.makeScrapeQueue();
 
 /***
@@ -75,10 +75,9 @@ var scrapeQueue = rssQ.makeScrapeQueue();
  */
 
 var readabilityRequestCron = function (time, master) {
-  master = master || masterRssList;
-  var time = time || '*/20 * * * * *';
+  time = time || '00 */30 * * * *';
   new CronJob(time, function(){
-  console.log('You will see this message every 20 sec');
+  console.log('You will see this message every 30 mins');
 
   // populates the master rss queue which is independent of querying readability,
   /*  
@@ -87,7 +86,14 @@ var readabilityRequestCron = function (time, master) {
   */
   populateMasterRssQueue(rssURL);
 
-  
+  }, null, true, "America/Los_Angeles");
+};
+
+var popCron = function (time) {
+  time = time || '*/10 * * * * *';
+  new CronJob(time, function(){
+    console.log('You will see this message every 10 sec');
+
   /*
     If queryReadability is sucessful
     - updates mongo
@@ -108,7 +114,7 @@ var populateMasterRssQueue = function (url, limit) {
 
   rssReader(url).then(function(rssResults){
 
-    console.log('rss scrape results: ', toRssResultTitles(rssResults));
+    console.log('rss scrape results size: ', toRssResultTitles(rssResults).length);
 
     // var addedNew = false;
 
@@ -269,13 +275,24 @@ var currentMasterRssQueue = function (master) {
  *                                              
  */
 
+var done = function (err) {
+  if (err) {
+    console.log(err, err.stack);
+    return process.exit(1);
+  }
+  // server.close();
+  process.exit();
+}
+
 // Makes a request to rss url and returns a promised array of rss objects
 var rssReader = function(url) {
   return new Promise(function(resolve, reject){
     var req = request(url);
+    req.setMaxListeners(300);
     var rssResult = [];
     var feedparser = new FeedParser();
     req.on('error', function (error) {
+      console.log("request to rss errored: ", error);
       reject(error);
     });
     req.on('response', function (res) {
@@ -295,7 +312,16 @@ var rssReader = function(url) {
       while (item = stream.read()) {
         rssResult.push(item);
       }
+    });
+
+    feedparser.on('end', function (err) {
+      if (err) {
+        console.log("feedparser.on('end' is erroring", err, err.stack);
+        return process.exit(1);
+      }
+      console.log('\nrssResult is being resolved, and process exited \n');
       resolve(rssResult);
+      // process.exit();
     });
   });
 };
@@ -355,6 +381,7 @@ var wordTableMaker = function(doc) {
     doc.content = doc.content.replace(/<\/?[^>]+(>|$)/g, "");
     doc.content = doc.content.replace(/[^\w\s]/gi, '');
     var words = doc.content.split(" ");
+    result.wordcount = words.length;
     for (var j = 0; j < words.length; j++) {
       word = words[j];
       words[j] = word.replace(/[\n\t]/g, '').toLowerCase();
@@ -428,8 +455,10 @@ readSiteByUrl = function(url){
  */
 
 module.exports.readabilityRequestCron = readabilityRequestCron;
-module.exports.readSiteByUrl = readSiteByUrl;
-module.exports.Site = Site;
+module.exports.populateMasterRssQueue = populateMasterRssQueue;
+module.exports.popCron                = popCron;
+module.exports.readSiteByUrl          = readSiteByUrl;
+module.exports.Site                   = Site;
 
 
 

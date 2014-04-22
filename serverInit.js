@@ -38,10 +38,14 @@ var startCron               = require('./cronBatchInsert.js').startCron;
 
 // rss reader and .json saver
 var readabilityRequestCron = require('./scrape.js').readabilityRequestCron;
+var popCron                = require('./scrape.js').popCron;
+var populateMasterRssQueue = require('./scrape.js').populateMasterRssQueue;
 
 // which dir to use
 // var theDir = dirPaths.dummyJSON;
 var theDir = dirPaths.jsonDir;
+// var rssURL = "https://news.ycombinator.com/bigrss";
+
 
 // move files from archive to original directory, remove in production
 moveJson()
@@ -50,11 +54,13 @@ moveJson()
 })
 // clear database for testing purposes, remove in production
 .then(function () {
+  console.log('neo4j cleared?');
   return clearNeo4jDBAsync();
 })
 // REAL functions begin here, everything before is for testing and can be cleared
 // assuming FRESH db
 .then(function () {
+  console.log('empty db checking?');
   return checkEmptyDB();
 })
 
@@ -63,10 +69,12 @@ moveJson()
   // consoleStart(isNeo4jEmpty, "isNeo4jEmpty ??")
   // if the database is empty, then move archive files back to json folder to be inserted
   if (isNeo4jEmpty) {
+    console.log('if neo4j is empty, move json');
     return moveJson();
 
   // else if it is NOT empty, then populate the master dictionary with words
   } else {
+    console.log('if noe4j is not empty, populate master');
     return populateMasterDictAsync();
   }
 })
@@ -75,6 +83,7 @@ moveJson()
 })
 // if db is not empty, populate master doc list
 .then(function (results) {
+  console.log();
   return populateMasterDoclistAsync();
 })
 // read json directory for files to insert
@@ -98,11 +107,14 @@ moveJson()
   consoleStart(err, "serverInit moveJson() errored out!");
 })
 .then(function (movedFiles) {
-  consoleStart(movedFiles, 'moved to scrapeArchive from: ' + theDir);
+  return consoleStart(movedFiles, 'moved to scrapeArchive from: ' + theDir);
 })
 // now that the initial population / dictionary word retrieval of the neo4j database is finished, the cron job can start?
 .then(function () {
-  readabilityRequestCron()
+  console.log('executing cron jobs');
+  populateMasterRssQueue();
+  readabilityRequestCron();
+  popCron();
   startCron();
 })
 .catch(function (err) {
