@@ -53,10 +53,10 @@ moveJson()
   consoleStart(movedFiles,'files moved from archive to: ' + theDir);
 })
 // clear database for testing purposes, remove in production
-// .then(function () {
-//   console.log('neo4j cleared?');
-//   return clearNeo4jDBAsync();
-// })
+.then(function () {
+  console.log('neo4j cleared?');
+  return clearNeo4jDBAsync();
+})
 // REAL functions begin here, everything before is for testing and can be cleared
 // assuming FRESH db
 .then(function () {
