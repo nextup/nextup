@@ -87,7 +87,7 @@ var testDir = jsonDir;
 var startCron = function (time) {
   time = time || "*/30 * * * * *";
   return new CronJob.CronJob(time, function () {
-    console.log( "every 1 minute execute checkDir");
+    console.log( "every 30 sec execute checkDir");
     checkDir(testDir);
   }, null, true, "America/Los_Angeles");
 };
@@ -97,7 +97,7 @@ var checkDir = function (dir) {
   dir = dir || testDir;
   readJsonDir(dir)
     .then(function (fileList) {
-      console.log('what is fileList: ', fileList);
+      // console.log('what is fileList: ', fileList);
       if (fileList.length > 1 || fileList[0] !== undefined) {
         var filenames = toFilenameList(fileList);
         consoleStart(filenames, "files to archive after cron batch insert");
@@ -192,7 +192,7 @@ var parseRecPromise = function (fromSource, fullFilelist, limit, startIndex, par
     filesToMove.push(filename);
     return fs.readFileAsync(fileSource, "utf8").then(JSON.parse);
   }).then(function (subParsedArray) {
-    consoleStart(subParsedArray, 'this should contain everything');
+    // consoleStart(subParsedArray, 'this should contain everything');
     return parseRecPromise(fromSource, fullFilelist, limit, end, parsedList.concat(subParsedArray));
   });
 

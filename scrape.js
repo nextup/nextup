@@ -77,9 +77,9 @@ var scrapeQueue = rssQ.makeScrapeQueue();
 
 var readabilityRequestCron = function (time, master) {
   master = master || masterRssList;
-  var time = time || '*/20 * * * * *';
+  var time = time || '*/10 * * * * *';
   new CronJob(time, function(){
-  console.log('You will see this message every 20 sec');
+  console.log('You will see this message every 10 sec');
 
   // populates the master rss queue which is independent of querying readability,
   /*  
@@ -109,7 +109,7 @@ var populateMasterRssQueue = function (url, limit) {
 
   rssReader(url).then(function(rssResults){
 
-    console.log('rss scrape results: ', toRssResultTitles(rssResults));
+    console.log('rss scrape results size: ', toRssResultTitles(rssResults).length);
 
     // var addedNew = false;
 
@@ -270,13 +270,24 @@ var currentMasterRssQueue = function (master) {
  *                                              
  */
 
+var done = function (err) {
+  if (err) {
+    console.log(err, err.stack);
+    return process.exit(1);
+  }
+  // server.close();
+  process.exit();
+}
+
 // Makes a request to rss url and returns a promised array of rss objects
 var rssReader = function(url) {
   return new Promise(function(resolve, reject){
     var req = request(url);
+    req.setMaxListeners(300);
     var rssResult = [];
     var feedparser = new FeedParser();
     req.on('error', function (error) {
+      console.log("request to rss errored: ", error);
       reject(error);
     });
     req.on('response', function (res) {
@@ -296,7 +307,16 @@ var rssReader = function(url) {
       while (item = stream.read()) {
         rssResult.push(item);
       }
+    });
+
+    feedparser.on('end', function (err) {
+      if (err) {
+        console.log("feedparser.on('end' is erroring", err, err.stack);
+        return process.exit(1);
+      }
+      console.log('\nrssResult is being resolved, and process exited \n');
       resolve(rssResult);
+      // process.exit();
     });
   });
 };
