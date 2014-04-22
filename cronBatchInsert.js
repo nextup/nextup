@@ -85,9 +85,9 @@ var testDir = jsonDir;
 // this cron job checks the json folder to see if there are newly added files to be inserted into the neo4j DB.
 // jsonfiles that have been inserted into the database are archived
 var startCron = function (time) {
-  time = time || "*/30 * * * * *";
+  time = time || "00 */1 * * * *";
   return new CronJob.CronJob(time, function () {
-    console.log( "every 30 sec execute checkDir");
+    console.log( "every 1 min execute checkDir");
     checkDir(testDir);
   }, null, true, "America/Los_Angeles");
 };
@@ -260,7 +260,7 @@ var moveJson = function (fromSource, toDest, filenameList) {
 
 // converts json object files BACK to list of file names
 var toFilenameList = function (documentList) {
-  consoleStart(documentList, "files to be converted");
+  // consoleStart(documentList, "files to be converted");
   var result = [];
   for (var i = 0; i < documentList.length; i++) {
     var item = documentList[i];

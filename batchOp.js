@@ -246,6 +246,23 @@ var getPropertyBatch = function (nodeID, reqID, property, isInMasterDict) {
   return {cmd: cmd, reqID: reqID};
 };
 
+var isWordValid = function (word, doc) {
+  if (word === undefined || word === null) {
+    return false;
+
+  } else if (doc.wordtable[word] === undefined || doc.wordtable[word] === null) {
+    return false;
+
+  } else if (typeof doc.wordtable[word] !== 'number') {
+    return false;
+
+  } else {
+    return true;
+  }
+
+  // word !== "" && doc.wordtable[word] !== undefined && doc.wordtable[word] !== null && typeof doc.wordtable[word] === 'number'
+};
+
 var batchInsert = function (doc, requestID, num) {
   requestID = requestID || 0;
   var query = [];
@@ -266,9 +283,10 @@ var batchInsert = function (doc, requestID, num) {
 
   // iterate through words and create queries in order
   for (var word in doc.wordtable) { 
-    if (word !== "" && doc.wordtable[word] !== undefined && doc.wordtable[word] !== null) {
+    // if (word !== "" && doc.wordtable[word] !== undefined && doc.wordtable[word] !== null && typeof doc.wordtable[word] === 'number') {
+      if (isWordValid(word, doc)) {
       // if word is not in master dictionary, insert word node first THEN create relationship
-      var tfValue = (doc.wordtable[word] / (doc.wordcount+1)).toFixed(10);
+      var tfValue = (doc.wordtable[word] / (doc.wordcount)).toFixed(10);
       if (masterDict[word] === undefined) {
         var wordCMD = insertWordBatch(word, requestID);
         query.push(wordCMD.cmd);
@@ -338,7 +356,7 @@ var batchInsert = function (doc, requestID, num) {
 
 // updates the master dictionary on the server side
 var updateDict = function (newWords, result, num) {
-  consoleStart(result[0], "update dict - result 0: ");
+  // consoleStart(result[0], "update dict - result 0: ");
   num = num || 0;
   for (var i = 0; i < newWords.length; i++) {
     var word = newWords[i].word;
@@ -511,6 +529,7 @@ var insertBatchRec = function (result, response, documentList, num) {
 
   rest.postJson(batchURL, batchInsert(doc, 0, num+1).query)
     .on("complete", function (result, response) {
+      console.log();
       insertBatchRec(result, response, documentList, ++num);
     });
 };

@@ -61,7 +61,6 @@ var siteSchema = new Schema({
 var Site = mongoose.model('Site', siteSchema);
 
 // master lists
-var masterRssList = {};
 var scrapeQueue = rssQ.makeScrapeQueue();
 
 /***
@@ -76,10 +75,9 @@ var scrapeQueue = rssQ.makeScrapeQueue();
  */
 
 var readabilityRequestCron = function (time, master) {
-  master = master || masterRssList;
-  var time = time || '*/10 * * * * *';
+  time = time || '00 */30 * * * *';
   new CronJob(time, function(){
-  console.log('You will see this message every 10 sec');
+  console.log('You will see this message every 30 mins');
 
   // populates the master rss queue which is independent of querying readability,
   /*  
@@ -88,7 +86,14 @@ var readabilityRequestCron = function (time, master) {
   */
   populateMasterRssQueue(rssURL);
 
-  
+  }, null, true, "America/Los_Angeles");
+};
+
+var popCron = function (time) {
+  time = time || '*/10 * * * * *';
+  new CronJob(time, function(){
+    console.log('You will see this message every 10 sec');
+
   /*
     If queryReadability is sucessful
     - updates mongo
@@ -376,6 +381,7 @@ var wordTableMaker = function(doc) {
     doc.content = doc.content.replace(/<\/?[^>]+(>|$)/g, "");
     doc.content = doc.content.replace(/[^\w\s]/gi, '');
     var words = doc.content.split(" ");
+    result.wordcount = words.length;
     for (var j = 0; j < words.length; j++) {
       word = words[j];
       words[j] = word.replace(/[\n\t]/g, '').toLowerCase();
@@ -449,8 +455,10 @@ readSiteByUrl = function(url){
  */
 
 module.exports.readabilityRequestCron = readabilityRequestCron;
-module.exports.readSiteByUrl = readSiteByUrl;
-module.exports.Site = Site;
+module.exports.populateMasterRssQueue = populateMasterRssQueue;
+module.exports.popCron                = popCron;
+module.exports.readSiteByUrl          = readSiteByUrl;
+module.exports.Site                   = Site;
 
 
 
