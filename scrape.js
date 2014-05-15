@@ -19,6 +19,7 @@ var Promise = require('bluebird');
 var Sanitizer = require('sanitizer');
 var CronJob = require('cron').CronJob;
 var mongoose = require('mongoose');
+var path = require('path');
 
 var rssQ = require('./rssQueue.js');
 var fs = require('fs');
