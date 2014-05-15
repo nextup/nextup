@@ -47,43 +47,6 @@ app.get('/', function(req, res) {
 
 app.get('/users', user.list);
 
-// app.get('/article/*', function(req, res) {
-//   var fullUrl = req.url;
-
-//   var articleUrl = fullUrl.slice(fullUrl.indexOf("http"));
-//   var mongoURL = { url: articleUrl };
-//   var response = [];
-
-//   readURL.Site.find(mongoURL)
-//   .exec(function(err, result) {
-//     if (result.length === 0) {
-//       console.log("Not in mongo");
-//       readURL.readSiteByUrl(articleUrl)
-//       .then(function(readJSON) {
-//         response.push(readJSON);
-//         return response;
-//       })
-//       .then(function() {
-//         return docFetch.cosSimFetch(cypherURL, articleUrl, 0.0, 10);
-//       })
-//       .then(function(topCosSim) {
-//         return response.push(topCosSim);
-//       })
-//       .then(function() {
-//         return res.send(response);
-//       });
-//     } else {
-//       console.log("Found in mongo");
-//       response.push(result);
-//       docFetch.cosSimFetch(cypherURL, articleUrl, 0.0, 10)
-//       .then(function(topCosSim) {
-//         response.push(topCosSim);
-//         return res.send(response);
-//         //res.render('index', )
-//       });
-//     }
-//   });
-// });
 app.post('/article', function(req, res) {
   var request = { title: req.body.title, url: req.body.url };
   var mongoURL = { url: request.url };
@@ -91,13 +54,11 @@ app.post('/article', function(req, res) {
   var response = [];
   console.log(request);
   if (!batch.isInNeo4j(request, batch.masterDoclist)) {
-    console.log("DOES THIS EVEN WORK?!?!");
     return res.send("Invalid Request");
   }
   readURL.Site.find(mongoURL)
   .exec(function(err, result) {
     if (result.length === 0) {
-      console.log("Not in mongo");
       readURL.readSiteByUrl(articleUrl)
       .then(function(readJSON) {
         response.push(readJSON);
@@ -113,7 +74,6 @@ app.post('/article', function(req, res) {
         return res.send(response);
       });
     } else {
-      console.log("Found in mongo");
       response.push(result);
       docFetch.cosSimFetch(cypherURL, articleUrl, 0.0, 25)
       .then(function(topCosSim) {
@@ -138,5 +98,4 @@ http.createServer(app).listen(app.get('port'), function(){
   console.log('Express server listening on port ' + app.get('port'));
 });
 
-// require serverInit.js
 require('./serverInit.js');
