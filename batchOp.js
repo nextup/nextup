@@ -433,7 +433,9 @@ var updateConnections = function (wToUpdate, results, num) {
 var cosineSimilarityInsertion = function(url) {
   var tfidfQuery = { query: "MATCH (n:Document) WITH count(DISTINCT n) AS totalDocs MATCH (d:Document)-[r:HAS]->(w:Word) WITH r.tf AS tf,w.connections AS totalRel,1.0+1.0*(log((totalDocs)/(w.connections))) AS idf,d,r,w SET r.TFIDF = toFloat(tf) * toFloat(idf)"};
   var vectorQuery = { query: "MATCH (d:Document)-[r:HAS]->(w:Word) WITH SQRT(REDUCE(dot = 0, a IN COLLECT(r.TFIDF) | dot + a*a)) AS vector, d SET d.vector = vector"};
-  var cosSimQuery = { query: "MATCH (d1:Document)-[x:HAS]->(w:Word)<-[y:HAS]-(d2:Document) WITH SUM(x.TFIDF * y.TFIDF) AS xyDotProduct, d1.vector AS xMagnitude, d2.vector AS yMagnitude, d1, d2 CREATE UNIQUE (d1)-[s:SIMILARITY]-(d2) SET s.similarity = xyDotProduct / (xMagnitude * yMagnitude)"};
+  // has create unique
+  // var cosSimQuery = { query: "MATCH (d1:Document)-[x:HAS]->(w:Word)<-[y:HAS]-(d2:Document) WITH SUM(x.TFIDF * y.TFIDF) AS xyDotProduct, d1.vector AS xMagnitude, d2.vector AS yMagnitude, d1, d2 CREATE UNIQUE (d1)-[s:SIMILARITY]-(d2) SET s.similarity = xyDotProduct / (xMagnitude * yMagnitude)"};
+  var cosSimQuery = { query: "MATCH (d1:Document)-[x:HAS]->(w:Word)<-[y:HAS]-(d2:Document) WITH SUM(x.TFIDF * y.TFIDF) AS xyDotProduct, d1.vector AS xMagnitude, d2.vector AS yMagnitude, d1, d2 MERGE (d1)-[s:SIMILARITY]-(d2) ON CREATE SET s.similarity = xyDotProduct / (xMagnitude * yMagnitude) ON MATCH SET s.similarity = xyDotProduct / (xMagnitude * yMagnitude)"};
   rest.postJson(url, tfidfQuery)
   .on("complete", function(result, response) {
     console.log("TFIDF Query Complete", result, "Starting Vector Query");
@@ -462,7 +464,7 @@ var isDocValid = function (doc, master, minUniqueWords, num) {
   // set up default variables
   master = master || masterDoclist;
   num = num || 0;
-  minUniqueWords = minUniqueWords || 25;
+  minUniqueWords = minUniqueWords || 3;
 
   // setup tests
   if (doc.title === null || doc.title === undefined) {
@@ -521,7 +523,7 @@ var insertBatchRec = function (result, response, documentList, num) {
       return; 
     }
   }
-  console.log("valid doc: ", doc.title, ", count: ", num);
+  console.log("docs inserted/left: ", num + '/' + (documentList.length + num), ", valid doc: ", doc.title)
 
   // TODO
   // note, instead of popping off an item and and mutating original, maybe just count?

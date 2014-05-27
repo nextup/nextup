@@ -170,9 +170,9 @@ var parseRecPromise = function (fromSource, fullFilelist, limit, startIndex, par
   fromSource = fromSource || testDir;
   startIndex = startIndex || 0;
   parsedList = parsedList || [];
-  if (limit === undefined || typeof limit !== 'number' || limit <= 0 || limit > 250) {
+  if (limit === undefined || typeof limit !== 'number' || limit <= 0 || limit > 100) {
     console.log('is limit running');
-    limit = 250;
+    limit = 100;
   }
   var end = startIndex + limit;
 

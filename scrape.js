@@ -89,9 +89,9 @@ var readabilityRequestCron = function (time, master) {
 };
 
 var popCron = function (time) {
-  time = time || '00 */2 * * * *';
+  time = time || '00 */60 * * * *';
   new CronJob(time, function(){
-    console.log('You will see this message every 2 min');
+    console.log('You will see this message every 60 min');
 
   /*
     If queryReadability is sucessful
@@ -386,6 +386,11 @@ var wordTableMaker = function(doc) {
     for (var j = 0; j < words.length; j++) {
       word = words[j];
       words[j] = word.replace(/[\n\t]/g, '').toLowerCase();
+      words[j] = word[j].replace("x2019", "'");
+      spaces = word[j].split('xa0');
+      for (var i = 1; i < spaces.length; i++) { words.push(spaces[i]); }
+        words[j] = spaces[0];
+      // split xa0, and put words into dictionary
     }
     // console.log(words);
     for (var i = 0; i < words.length; i++) {
