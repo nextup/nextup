@@ -1,14 +1,14 @@
 /*
 // **
-//  *      _____  _             
-//  *     |  __ \| |            
-//  *     | |__) | | __ _ _ __  
-//  *     |  ___/| |/ _` | '_ \ 
+//  *      _____  _
+//  *     |  __ \| |
+//  *     | |__) | | __ _ _ __
+//  *     |  ___/| |/ _` | '_ \
 //  *     | |    | | (_| | | | |
 //  *     |_|    |_|\__,_|_| |_|
-//  *                           
-//  *                           
- 
+//  *
+//  *
+
 TL;DR
 -----------------------
   0. ALL functions to be executed (except global/dependencies) or exported are at the bottom of this page
@@ -66,28 +66,28 @@ var dirPaths = {
   dummyJSON: dummyJSON
 };
 
-// uncomment one of the below to test 
+// uncomment one of the below to test
 // in production version, change all cases of testDir to jsonDir
 // var testDir = dummyJSON;
 var testDir = jsonDir;
 
 /***
- *       _____                        _       _     
- *      / ____|                      | |     | |    
- *     | |     _ __ ___  _ __        | | ___ | |__  
- *     | |    | '__/ _ \| '_ \   _   | |/ _ \| '_ \ 
+ *       _____                        _       _
+ *      / ____|                      | |     | |
+ *     | |     _ __ ___  _ __        | | ___ | |__
+ *     | |    | '__/ _ \| '_ \   _   | |/ _ \| '_ \
  *     | |____| | | (_) | | | | | |__| | (_) | |_) |
- *      \_____|_|  \___/|_| |_|  \____/ \___/|_.__/ 
- *                                                  
- *                                                  
+ *      \_____|_|  \___/|_| |_|  \____/ \___/|_.__/
+ *
+ *
  */
 
 // this cron job checks the json folder to see if there are newly added files to be inserted into the neo4j DB.
 // jsonfiles that have been inserted into the database are archived
 var startCron = function (time) {
-  time = time || "00 */1 * * * *";
+  time = time || "00 */10 * * * *";
   return new CronJob.CronJob(time, function () {
-    console.log( "every 1 min execute checkDir");
+    console.log( "every 10 min execute checkDir");
     checkDir(testDir);
   }, null, true, "America/Los_Angeles");
 };
@@ -112,17 +112,17 @@ var checkDir = function (dir) {
 };
 
 /***
- *      _    _          _                       
- *     | |  | |        | |                      
- *     | |__| |   ___  | |  _ __     ___   _ __ 
+ *      _    _          _
+ *     | |  | |        | |
+ *     | |__| |   ___  | |  _ __     ___   _ __
  *     |  __  |  / _ \ | | | '_ \   / _ \ | '__|
- *     | |  | | |  __/ | | | |_) | |  __/ | |   
- *     |_|  |_|  \___| |_| | .__/   \___| |_|   
- *                         | |                  
- *                         |_|                  
+ *     | |  | | |  __/ | | | |_) | |  __/ | |
+ *     |_|  |_|  \___| |_| | .__/   \___| |_|
+ *                         | |
+ *                         |_|
  */
 
-// takes a str and returns 
+// takes a str and returns
 var filterString = function (filename, extension) {
   var ext = new RegExp( extension + '$');
   if (typeof filename === 'string') {
@@ -133,7 +133,7 @@ var filterString = function (filename, extension) {
 };
 
 // returns a promise of array of filenames from a directory that is prefiltered using either
-// - a filter function 
+// - a filter function
 // - an array of filter expressions (could be file extensions OR regex if third param is true)
 var readdirFilterPromise = function (fromSource, theFilter, isRegex) {
   if (!fromSource) {throw 'readdirFilter source is not specified';}
@@ -170,9 +170,9 @@ var parseRecPromise = function (fromSource, fullFilelist, limit, startIndex, par
   fromSource = fromSource || testDir;
   startIndex = startIndex || 0;
   parsedList = parsedList || [];
-  if (limit === undefined || typeof limit !== 'number' || limit <= 0 || limit > 250) {
+  if (limit === undefined || typeof limit !== 'number' || limit <= 0 || limit > 100) {
     console.log('is limit running');
-    limit = 250;
+    limit = 100;
   }
   var end = startIndex + limit;
 
@@ -206,7 +206,7 @@ var readJsonDir = function (fromSource, readFileLimit) {
   // filenameList returns a promisified array of filenames, can be used if chained with .then() or other bluebird methods
   var filenameListP = readdirFilterPromise(fromSource, '.json');
 
-  // this returns a 
+  // this returns a
   return filenameListP.then(function (allFilenames) {
     return parseRecPromise(fromSource, allFilenames, readFileLimit);
   });
@@ -294,14 +294,14 @@ var checkEmptyDB = function (fromSource, toDest) {
 };
 
 /***
- *      ______                                 _         
- *     |  ____|                               | |        
- *     | |__    __  __  _ __     ___    _ __  | |_   ___ 
+ *      ______                                 _
+ *     |  ____|                               | |
+ *     | |__    __  __  _ __     ___    _ __  | |_   ___
  *     |  __|   \ \/ / | '_ \   / _ \  | '__| | __| / __|
  *     | |____   >  <  | |_) | | (_) | | |    | |_  \__ \
  *     |______| /_/\_\ | .__/   \___/  |_|     \__| |___/
- *                     | |                               
- *                     |_|                               
+ *                     | |
+ *                     |_|
  */
 
 module.exports.readJsonDir = readJsonDir;
@@ -312,14 +312,14 @@ module.exports.checkEmptyDB = checkEmptyDB;
 module.exports.startCron = startCron;
 
 /***
- *      ______                                _          
- *     |  ____|                              | |         
- *     | |__    __  __   ___    ___   _   _  | |_    ___ 
+ *      ______                                _
+ *     |  ____|                              | |
+ *     | |__    __  __   ___    ___   _   _  | |_    ___
  *     |  __|   \ \/ /  / _ \  / __| | | | | | __|  / _ \
  *     | |____   >  <  |  __/ | (__  | |_| | | |_  |  __/
  *     |______| /_/\_\  \___|  \___|  \__,_|  \__|  \___|
- *                                                       
- *                                                       
+ *
+ *
  */
 
 

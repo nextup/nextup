@@ -1,6 +1,6 @@
 /*
 
-  LOGIC: 
+  LOGIC:
 
   If readability is sucessful
     - update mongo
@@ -17,12 +17,11 @@ var FeedParser = require('feedparser');
 var request = require('request');
 var Promise = require('bluebird');
 var Sanitizer = require('sanitizer');
-var cheerio = require('cheerio');
 var CronJob = require('cron').CronJob;
 var mongoose = require('mongoose');
+var path = require('path');
 
 var rssQ = require('./rssQueue.js');
-var myFs = require('./fsFunctions.js');
 var fs = require('fs');
 
 // var rssURL = "https://news.ycombinator.com/rss";
@@ -64,23 +63,23 @@ var Site = mongoose.model('Site', siteSchema);
 var scrapeQueue = rssQ.makeScrapeQueue();
 
 /***
- *       _____                    
- *      / ____|                   
- *     | |      _ __  ___   _ __  
- *     | |     | '__|/ _ \ | '_ \ 
+ *       _____
+ *      / ____|
+ *     | |      _ __  ___   _ __
+ *     | |     | '__|/ _ \ | '_ \
  *     | |____ | |  | (_) || | | |
  *      \_____||_|   \___/ |_| |_|
- *                                
- *                                
+ *
+ *
  */
 
 var readabilityRequestCron = function (time, master) {
   time = time || '00 */60 * * * *';
   new CronJob(time, function(){
-  console.log('You will see this message every 60 mins');
+  console.log('populate rss every 60 mins');
 
   // populates the master rss queue which is independent of querying readability,
-  /*  
+  /*
     Add to scrape queue IF
      not in scrapeQueue AND not in mongoMaster
   */
@@ -92,7 +91,7 @@ var readabilityRequestCron = function (time, master) {
 var popCron = function (time) {
   time = time || '00 */1 * * * *';
   new CronJob(time, function(){
-    console.log('You will see this message every 1 min');
+    console.log('popCron readability every 1 min');
 
   /*
     If queryReadability is sucessful
@@ -126,23 +125,11 @@ var populateMasterRssQueue = function (url, limit) {
     for (var i = 0; i < len; i++) {
       var rssObj = rssResults[i];
       if (isRssDocValid(rssObj) && !scrapeQueue.contains(rssObj)) {
-          var filename = myFs.toFilename(rssObj);
+          var filename = toFilename(rssObj);
           if (archive.indexOf(filename + '.json') === -1 && main.indexOf(filename + '.json') === -1) {
             scrapeQueue.queue(rssObj);
           }
       }
-      // if (isRssDocValid(rssObj) && !scrapeQueue.contains(rssObj)) {
-      //   mongoCheck(rssObj).then(function (isInMongo) {
-      //     console.log('inside rss queue isInMongo: ', isInMongo, rssObj.title);
-      //     if (!isInMongo) {
-      //       var add = scrapeQueue.queue(rssObj);
-      //       console.log('added to scrapeQueue: ', add);
-      //       // addedNew = true;
-      //     }
-      //   }).catch(function (err) {
-      //     console.log('mongoCheck query errored: ', err);
-      //   });
-      // }
     }
     // for testing purposes
     // if (addedNew) {
@@ -179,7 +166,7 @@ var queryReadability = function () {
       .then(function (doc) {
         console.log('readableQuery worked: ', doc.title);
 
-        myFs.saveAsJson(doc)
+        saveAsJson(doc)
         .then(function(item){
           console.log('save as Json successful');
         })
@@ -188,21 +175,21 @@ var queryReadability = function () {
         });
       })
       .catch(function(err){
-        console.log('reability did not work: ', err);
+        console.log('readability did not work: ', err);
       });
     }
   }
 };
 
 /***
- *      _    _        _                    
- *     | |  | |      | |                   
- *     | |__| |  ___ | | _ __    ___  _ __ 
+ *      _    _        _
+ *     | |  | |      | |
+ *     | |__| |  ___ | | _ __    ___  _ __
  *     |  __  | / _ \| || '_ \  / _ \| '__|
- *     | |  | ||  __/| || |_) ||  __/| |   
- *     |_|  |_| \___||_|| .__/  \___||_|   
- *                      | |                
- *                      |_|                
+ *     | |  | ||  __/| || |_) ||  __/| |
+ *     |_|  |_| \___||_|| .__/  \___||_|
+ *                      | |
+ *                      |_|
  */
 
 // returns an array of rss objects converted to an array of rss titles
@@ -232,11 +219,11 @@ var isRssDocValid = function (doc) {
   if (!doc) { console.log ('rss doc not valid!!!', doc)}
   if (typeof doc.title !== 'string' && typeof doc.link !== 'string') {
     return false;
-  } 
+  }
   return true;
 };
 
-// 
+//
 var addToMaster = function (doc) {
   if (!doc) { throw "addToMaster input is undefined"}
   // only adds to master Rss list if it's not in the master rss list
@@ -262,17 +249,31 @@ var currentMasterRssQueue = function (master) {
   return results;
 };
 
+var saveAsJson = function (item, dir) {
+  var dir = dir || './json/'
+  item.file = toFilename(item);
+  return fs.writeFileAsync(path.join(dir, item.file + '.json'), JSON.stringify(item));
+};
 
+var toFilename = function (item) {
+  return item.title
+          .replace(/[^\w\s]|_/g, '')
+          .replace(/\W+/g, '')
+          .replace(/\s+/g, '')
+          .replace(/ +?/g, '')
+          .replace()
+          .toLowerCase();
+};
 
 /***
- *       ____                      _            
- *      / __ \                    (_)           
- *     | |  | | _   _   ___  _ __  _   ___  ___ 
+ *       ____                      _
+ *      / __ \                    (_)
+ *     | |  | | _   _   ___  _ __  _   ___  ___
  *     | |  | || | | | / _ \| '__|| | / _ \/ __|
  *     | |__| || |_| ||  __/| |   | ||  __/\__ \
  *      \___\_\ \__,_| \___||_|   |_| \___||___/
- *                                              
- *                                              
+ *
+ *
  */
 
 var done = function (err) {
@@ -385,6 +386,11 @@ var wordTableMaker = function(doc) {
     for (var j = 0; j < words.length; j++) {
       word = words[j];
       words[j] = word.replace(/[\n\t]/g, '').toLowerCase();
+      words[j] = words[j].replace("x2019", "'");
+      spaces = words[j].split('xa0');
+      for (var i = 1; i < spaces.length; i++) { words.push(spaces[i]); }
+        words[j] = spaces[0];
+      // split xa0, and put words into dictionary
     }
     // console.log(words);
     for (var i = 0; i < words.length; i++) {
@@ -408,7 +414,6 @@ var mongoCheck = function(rssObj) {
 
     var mongoQuery = { title: title , url: url};
     Site.find(mongoQuery).exec(function(error, result) {
-      // console.log('mongoose results: ' ,result);
       if (error) {
         reject(error);
       }
@@ -444,14 +449,14 @@ readSiteByUrl = function(url){
 };
 
 /***
- *      ______                            _   
- *     |  ____|                          | |  
- *     | |__   __  __ _ __    ___   _ __ | |_ 
+ *      ______                            _
+ *     |  ____|                          | |
+ *     | |__   __  __ _ __    ___   _ __ | |_
  *     |  __|  \ \/ /| '_ \  / _ \ | '__|| __|
- *     | |____  >  < | |_) || (_) || |   | |_ 
+ *     | |____  >  < | |_) || (_) || |   | |_
  *     |______|/_/\_\| .__/  \___/ |_|    \__|
- *                   | |                      
- *                   |_|                      
+ *                   | |
+ *                   |_|
  */
 
 module.exports.readabilityRequestCron = readabilityRequestCron;
@@ -463,12 +468,12 @@ module.exports.Site                   = Site;
 
 
 /***
- *       _____              _         _   
- *      / ____|            (_)       | |  
- *     | (___    ___  _ __  _  _ __  | |_ 
+ *       _____              _         _
+ *      / ____|            (_)       | |
+ *     | (___    ___  _ __  _  _ __  | |_
  *      \___ \  / __|| '__|| || '_ \ | __|
- *      ____) || (__ | |   | || |_) || |_ 
+ *      ____) || (__ | |   | || |_) || |_
  *     |_____/  \___||_|   |_|| .__/  \__|
- *                            | |         
- *                            |_|         
+ *                            | |
+ *                            |_|
  */
