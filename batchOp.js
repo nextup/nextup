@@ -458,7 +458,9 @@ var createCosSimQueryTransaction = function (docNodes, startNode) {
   return transaction;
 };
 
-var calculating = false;
+
+
+var calculatingCosSim = false;
 
 // Creates tfidf properties, creates vectors and cosine similarity
 var cosineSimilarityInsertion = function(url) {
@@ -474,16 +476,22 @@ var cosineSimilarityInsertion = function(url) {
     rest.postJson(url, vectorQuery)
     .on("complete", function(result, response) {
       var docNodes = result.data[0][0];
-      console.log("Vector Query Complete", docNodes, "Starting Cosine Similarity Query");
+      console.log("Vector Query Complete, docs: ", docNodes.length, ". Starting Cosine Similarity Query");
       
       var transactionURL = "http://localhost:7474/db/data/transaction/commit";
       calculating = true;
+      var total = ((docNodes.length-1) * (docNodes.length-1) + (docNodes.length-1)) / 2;
+      var count = 0;
       for (var i = 0; i < docNodes.length-1; i++) {
           cosSimQuery = createCosSimQueryTransaction(docNodes, i);
-          rest.postJson(transactionURL, cosSimQuery)
-          .on("complete", function (result, response) {
-            console.log (i, "/", docNodes.length, calculating);
-          });
+          (function (add) {
+            rest.postJson(transactionURL, cosSimQuery)
+            .on("complete", function (result, response) {
+              count+=add;
+              console.log (Math.floor(count/total * 100), "%", ", raw: ", count, "/", total);
+              calculatingCosSim = count === total;
+            });
+          })(docNodes.length-i-1);
       }
       // .on("complete", function(result, response) {
       //   console.log("Cosine Similarity Query Complete", result);
