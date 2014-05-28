@@ -24,8 +24,8 @@ var path = require('path');
 var rssQ = require('./rssQueue.js');
 var fs = require('fs');
 
-var rssURL = "https://news.ycombinator.com/rss";
-// var rssURL = "https://news.ycombinator.com/bigrss";
+// var rssURL = "https://news.ycombinator.com/rss";
+var rssURL = "https://news.ycombinator.com/bigrss";
 
 var Schema = mongoose.Schema;
 var db = mongoose.connection;
@@ -76,7 +76,7 @@ var scrapeQueue = rssQ.makeScrapeQueue();
 var readabilityRequestCron = function (time, master) {
   time = time || '00 */60 * * * *';
   new CronJob(time, function(){
-  console.log('You will see this message every 60 mins');
+  console.log('populate rss every 60 mins');
 
   // populates the master rss queue which is independent of querying readability,
   /*
@@ -89,9 +89,9 @@ var readabilityRequestCron = function (time, master) {
 };
 
 var popCron = function (time) {
-  time = time || '00 */60 * * * *';
+  time = time || '00 */1 * * * *';
   new CronJob(time, function(){
-    console.log('You will see this message every 60 min');
+    console.log('popCron readability every 1 min');
 
   /*
     If queryReadability is sucessful
@@ -175,7 +175,7 @@ var queryReadability = function () {
         });
       })
       .catch(function(err){
-        console.log('reability did not work: ', err);
+        console.log('readability did not work: ', err);
       });
     }
   }
@@ -386,8 +386,8 @@ var wordTableMaker = function(doc) {
     for (var j = 0; j < words.length; j++) {
       word = words[j];
       words[j] = word.replace(/[\n\t]/g, '').toLowerCase();
-      words[j] = word[j].replace("x2019", "'");
-      spaces = word[j].split('xa0');
+      words[j] = words[j].replace("x2019", "'");
+      spaces = words[j].split('xa0');
       for (var i = 1; i < spaces.length; i++) { words.push(spaces[i]); }
         words[j] = spaces[0];
       // split xa0, and put words into dictionary

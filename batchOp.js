@@ -458,7 +458,15 @@ var createCosSimQueryTransaction = function (docNodes, startNode) {
   return transaction;
 };
 
+var getTimeElapsed = function (startTime, endTime) {
+  endTime = endTime || new Date();
+  var endTime = new Date();
+  var milli = new Date(endTime-startTime).getMilliseconds();
+  var seconds = new Date(endTime-startTime).getSeconds();
+  var minutes = new Date(endTime-startTime).getMinutes();
 
+  return '' + minutes + " mins " + seconds + " secs " + milli + " msec. raw msec: " + (endTime-startTime);
+};
 
 var calculatingCosSim = false;
 
@@ -475,11 +483,12 @@ var cosineSimilarityInsertion = function(url) {
     console.log("TFIDF Query Complete", result, "Starting Vector Query");
     rest.postJson(url, vectorQuery)
     .on("complete", function(result, response) {
+      var startTime = new Date();
       var docNodes = result.data[0][0];
       console.log("Vector Query Complete, docs: ", docNodes.length, ". Starting Cosine Similarity Query");
       
       var transactionURL = "http://localhost:7474/db/data/transaction/commit";
-      calculating = true;
+      calculatingCosSim = true;
       var total = ((docNodes.length-1) * (docNodes.length-1) + (docNodes.length-1)) / 2;
       var count = 0;
       for (var i = 0; i < docNodes.length-1; i++) {
@@ -489,7 +498,13 @@ var cosineSimilarityInsertion = function(url) {
             .on("complete", function (result, response) {
               count+=add;
               console.log (Math.floor(count/total * 100), "%", ", raw: ", count, "/", total);
-              calculatingCosSim = count === total;
+
+              // if all relationships have been added/updated
+              if (count === total) {
+                calculatingCosSim = false;
+                console.log("\ncos sim time elapsed:\n", getTimeElapsed(startTime), "\n");
+              }
+
             });
           })(docNodes.length-i-1);
       }
@@ -540,6 +555,8 @@ var isDocValid = function (doc, master, minUniqueWords, num) {
 
 // recursive function that inserts docs only when the previous document has been inserted
 var insertBatchRec = function (result, response, documentList, num) {
+  if (calculatingCosSim === true) { return; } // if we're calculating cos similarity, then don't batch insert, wait till next loop
+
   // num is for debugging purposes, shows which queries goes with which results
   num = num || 0;
   // consoleStart(result, "Result after " + num + " insert");
