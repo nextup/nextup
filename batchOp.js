@@ -458,6 +458,8 @@ var createCosSimQueryTransaction = function (docNodes, startNode) {
   return transaction;
 };
 
+var calculating = false;
+
 // Creates tfidf properties, creates vectors and cosine similarity
 var cosineSimilarityInsertion = function(url) {
   var tfidfQuery = { query: "MATCH (n:Document) WITH count(DISTINCT n) AS totalDocs MATCH (d:Document)-[r:HAS]->(w:Word) WITH r.tf AS tf,w.connections AS totalRel,1.0+1.0*(log((totalDocs)/(w.connections))) AS idf,d,r,w SET r.TFIDF = toFloat(tf) * toFloat(idf)"};
@@ -475,9 +477,13 @@ var cosineSimilarityInsertion = function(url) {
       console.log("Vector Query Complete", docNodes, "Starting Cosine Similarity Query");
       
       var transactionURL = "http://localhost:7474/db/data/transaction/commit";
+      calculating = true;
       for (var i = 0; i < docNodes.length-1; i++) {
           cosSimQuery = createCosSimQueryTransaction(docNodes, i);
           rest.postJson(transactionURL, cosSimQuery)
+          .on("complete", function (result, response) {
+            console.log (i, "/", docNodes.length, calculating);
+          });
       }
       // .on("complete", function(result, response) {
       //   console.log("Cosine Similarity Query Complete", result);
