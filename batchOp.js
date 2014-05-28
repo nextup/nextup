@@ -429,28 +429,94 @@ var updateConnections = function (wToUpdate, results, num) {
   wordsToUpdate = [];
   return masterDict;
 };
+
+//docNodes
+/*
+{
+  "statements":[{
+    "statement": "START d1=node(29), d2=node({ids}) MATCH (d1:Document)-[x:HAS]->(w:Word)<-[y:HAS]-(d2:Document) WITH SUM(x.TFIDF * y.TFIDF) AS xyDotProduct, d1.vector AS xMagnitude, d2.vector AS yMagnitude, d1, d2 MERGE (d1)-[s:SIMILARITY]-(d2) ON CREATE SET s.similarity = xyDotProduct / (xMagnitude * yMagnitude) ON MATCH SET s.similarity = xyDotProduct / (xMagnitude * yMagnitude)",
+    "parameters": {
+      "ids": [37,36,33]
+    }
+  }]
+}
+*/
+
+var createCosSimQueryTransaction = function (docNodes, startNode) {
+  var transaction = {};
+  transaction.statements = [];
+  var query = {}; // individual query
+
+  var startStr = "START d1=node(" + docNodes[startNode] + ")" + ", d2=node({ids}) MATCH (d1:Document)-[x:HAS]->(w:Word)<-[y:HAS]-(d2:Document) WITH SUM(x.TFIDF * y.TFIDF) AS xyDotProduct, d1.vector AS xMagnitude, d2.vector AS yMagnitude, d1, d2 MERGE (d1)-[s:SIMILARITY]-(d2) ON CREATE SET s.similarity = xyDotProduct / (xMagnitude * yMagnitude) ON MATCH SET s.similarity = xyDotProduct / (xMagnitude * yMagnitude)";
+  query.statement = startStr;
+
+  var docIDs = docNodes.slice(startNode+1);
+  query.parameters = {};
+  query.parameters.ids = docIDs;
+
+  transaction.statements.push(query);
+  return transaction;
+};
+
+var getTimeElapsed = function (startTime, endTime) {
+  endTime = endTime || new Date();
+  var endTime = new Date();
+  var milli = new Date(endTime-startTime).getMilliseconds();
+  var seconds = new Date(endTime-startTime).getSeconds();
+  var minutes = new Date(endTime-startTime).getMinutes();
+
+  return '' + minutes + " mins " + seconds + " secs " + milli + " msec. raw msec: " + (endTime-startTime);
+};
+
+var calculatingCosSim = false;
+
 // Creates tfidf properties, creates vectors and cosine similarity
 var cosineSimilarityInsertion = function(url) {
   var tfidfQuery = { query: "MATCH (n:Document) WITH count(DISTINCT n) AS totalDocs MATCH (d:Document)-[r:HAS]->(w:Word) WITH r.tf AS tf,w.connections AS totalRel,1.0+1.0*(log((totalDocs)/(w.connections))) AS idf,d,r,w SET r.TFIDF = toFloat(tf) * toFloat(idf)"};
-  var vectorQuery = { query: "MATCH (d:Document)-[r:HAS]->(w:Word) WITH SQRT(REDUCE(dot = 0, a IN COLLECT(r.TFIDF) | dot + a*a)) AS vector, d SET d.vector = vector"};
-  var cosSimQuery = { query: "MATCH (d1:Document)-[x:HAS]->(w:Word)<-[y:HAS]-(d2:Document) WITH SUM(x.TFIDF * y.TFIDF) AS xyDotProduct, d1.vector AS xMagnitude, d2.vector AS yMagnitude, d1, d2 CREATE UNIQUE (d1)-[s:SIMILARITY]-(d2) SET s.similarity = xyDotProduct / (xMagnitude * yMagnitude)"};
+  var vectorQuery = { query: "MATCH (d:Document)-[r:HAS]->(w:Word) WITH SQRT(REDUCE(dot = 0, a IN COLLECT(r.TFIDF) | dot + a*a)) AS vector, d SET d.vector = vector RETURN COLLECT(DISTINCT id(d))"};
+  // has create unique
+  // var cosSimQuery = { query: "MATCH (d1:Document)-[x:HAS]->(w:Word)<-[y:HAS]-(d2:Document) WITH SUM(x.TFIDF * y.TFIDF) AS xyDotProduct, d1.vector AS xMagnitude, d2.vector AS yMagnitude, d1, d2 CREATE UNIQUE (d1)-[s:SIMILARITY]-(d2) SET s.similarity = xyDotProduct / (xMagnitude * yMagnitude)"};
+  // var cosSimQuery = { query: "MATCH (d1:Document)-[x:HAS]->(w:Word)<-[y:HAS]-(d2:Document) WITH SUM(x.TFIDF * y.TFIDF) AS xyDotProduct, d1.vector AS xMagnitude, d2.vector AS yMagnitude, d1, d2 MERGE (d1)-[s:SIMILARITY]-(d2) ON CREATE SET s.similarity = xyDotProduct / (xMagnitude * yMagnitude) ON MATCH SET s.similarity = xyDotProduct / (xMagnitude * yMagnitude)"};
+  var cosSimQuery = {query: "MATCH (d1: Document) RETURN COUNT(d1)"};
   rest.postJson(url, tfidfQuery)
   .on("complete", function(result, response) {
     console.log("TFIDF Query Complete", result, "Starting Vector Query");
     rest.postJson(url, vectorQuery)
     .on("complete", function(result, response) {
-      console.log("Vector Query Complete", result, "Starting Cosine Similarity Query");
-      rest.postJson(url, cosSimQuery)
-      .on("complete", function(result, response) {
-        console.log("Cosine Similarity Query Complete", result);
-        // Test Cosine Similarity fetcher
-        // docFetch.cosSimFetch(url, "https://www.dropboxatwork.com/2014/04/new-dropbox-business/", 0.0, 10);
-      });
+      var startTime = new Date();
+      var docNodes = result.data[0][0];
+      console.log("Vector Query Complete, docs: ", docNodes.length, ". Starting Cosine Similarity Query");
+      
+      var transactionURL = "http://localhost:7474/db/data/transaction/commit";
+      calculatingCosSim = true;
+      var total = ((docNodes.length-1) * (docNodes.length-1) + (docNodes.length-1)) / 2;
+      var count = 0;
+      for (var i = 0; i < docNodes.length-1; i++) {
+          cosSimQuery = createCosSimQueryTransaction(docNodes, i);
+          (function (add) {
+            rest.postJson(transactionURL, cosSimQuery)
+            .on("complete", function (result, response) {
+              count+=add;
+              console.log (Math.floor(count/total * 100), "%", ", raw: ", count, "/", total);
+
+              // if all relationships have been added/updated
+              if (count === total) {
+                calculatingCosSim = false;
+                console.log("\ncos sim time elapsed:\n", getTimeElapsed(startTime), "\n");
+              }
+
+            });
+          })(docNodes.length-i-1);
+      }
+      // .on("complete", function(result, response) {
+      //   console.log("Cosine Similarity Query Complete", result);
+      //   // Test Cosine Similarity fetcher
+      //   // docFetch.cosSimFetch(url, "https://www.dropboxatwork.com/2014/04/new-dropbox-business/", 0.0, 10);
+      // });
     });
   });
 };
 
-//
 // if doc is already in the master doclist (duplicate) -> false
 // OR doc.title = null / undefined -> false
 // OR doc.url   = null / undefined -> false
@@ -462,7 +528,7 @@ var isDocValid = function (doc, master, minUniqueWords, num) {
   // set up default variables
   master = master || masterDoclist;
   num = num || 0;
-  minUniqueWords = minUniqueWords || 25;
+  minUniqueWords = minUniqueWords || 3;
 
   // setup tests
   if (doc.title === null || doc.title === undefined) {
@@ -489,6 +555,8 @@ var isDocValid = function (doc, master, minUniqueWords, num) {
 
 // recursive function that inserts docs only when the previous document has been inserted
 var insertBatchRec = function (result, response, documentList, num) {
+  if (calculatingCosSim === true) { return; } // if we're calculating cos similarity, then don't batch insert, wait till next loop
+
   // num is for debugging purposes, shows which queries goes with which results
   num = num || 0;
   // consoleStart(result, "Result after " + num + " insert");
@@ -521,7 +589,7 @@ var insertBatchRec = function (result, response, documentList, num) {
       return; 
     }
   }
-  console.log("valid doc: ", doc.title, ", count: ", num);
+  console.log("docs inserted/left: ", num + '/' + (documentList.length + num), ", valid doc: ", doc.title)
 
   // TODO
   // note, instead of popping off an item and and mutating original, maybe just count?

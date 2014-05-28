@@ -32,4 +32,6 @@ json/*
 scrapeArchive/*
 dummyJSON/*
 testCron/*
+neo4jtest.js
+realData/*
 

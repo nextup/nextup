@@ -89,7 +89,7 @@ moveJson()
 // read json directory for files to insert
 .then(function (results) {
   // returns a promisified array of *parsed* json document objects;
-  return readJsonDir(theDir);
+  return readJsonDir(theDir, 100);
 })
 .catch(function (err) {
   consoleStart(err, "serverInit readJsonDir() errored out!");
