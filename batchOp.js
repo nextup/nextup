@@ -28,6 +28,8 @@ var Promise = require('bluebird');
 
 var batchURL = process.env.BATCH || "http://localhost:7474/db/data/batch";
 var cypherURL = process.env.CYPHER || "http://localhost:7474/db/data/cypher";
+var transactionURL = process.env.TRANSACTION || "http://localhost:7474/db/data/transaction/commit";
+
 
 var consoleStart = require('./helpers/commonlyUsed.js').consoleStart;
 // helper functions
@@ -442,6 +444,11 @@ var updateConnections = function (wToUpdate, results, num) {
 }
 */
 
+var n4jState = {};
+n4jState.calculatingCosSim = false;
+n4jState.totalRelToCreate = 0; // every time we create cosine similarity, we keep track of how many have been created
+n4jState.createdRel = 0;
+
 var createCosSimQueryTransaction = function (docNodes, startNode) {
   var transaction = {};
   transaction.statements = [];
@@ -468,7 +475,74 @@ var getTimeElapsed = function (startTime, endTime) {
   return '' + minutes + " mins " + seconds + " secs " + milli + " msec. raw msec: " + (endTime-startTime);
 };
 
-var calculatingCosSim = false;
+/* PLAN
+  1. CREATE an array a queue / array of requests?
+     - unecessary to save it, each for-loop sends the request
+     - not return statement, each request is recursive until no errors
+
+  + create a cos sim
+  + create a recursive post helper function that keeps going until no errors
+  + create a helper console log that shows what percentage complete we are
+  + For each request, it is recursive
+    - if no errors -> add to count / total, console log
+    - if errored -> resend the same request
+  
+  + if complete !== 100%
+
+  for (var i = 0; i < docNodes.length; i++) {
+
+  }
+
+*/
+
+/*
+  Special console log function
+  1. 
+
+*/
+
+var recursiveCosSimRequest = function (cosSimQuery, n4jState, relCount, error) {
+  error = error || false;
+  rest.postJson(transactionURL, cosSimQuery)
+  .on("complete", function (result, response) {
+    // if there is an error, recursively call same function again
+    if (result.errors.length > 0) {
+      console.log("\n\n transaction error: \n", relCount, result.errors, "\n\n");
+      recursiveCosSimRequest(cosSimQuery, n4jState, relCount, true);
+      return;
+
+    // else there were no errors and the cos simlarity relationship was created
+    // can console log the state
+    } else {
+      // console.log(relCount, ': ', '\n\nresult: ', result, '\n\nresponse: ', response);
+      if (error) {console.log(relCount, " error resolved: added", n4jState.docNodes.length-1-relCount, "cos sim rels");}  // if there were previous errors
+      cosSimLog(n4jState, n4jState.docNodes.length - relCount - 1); // logs current state if there are no errors
+
+      // if we have reached the end of all cos sim requests and calculations, then 
+      if (n4jState.createdRel === n4jState.totalRelToCreate) {
+        n4jState.calculatingCosSim = false;
+        console.log("\ncos sim time elapsed:\n", getTimeElapsed(n4jState.startTime), "\n");
+      }
+    }
+  });
+};
+
+var cosSimLog = function (n4jState, add) {
+  n4jState.createdRel += add;
+  console.log (Math.floor(n4jState.createdRel/n4jState.totalRelToCreate * 100), '%', ', raw: ', n4jState.createdRel, '/', n4jState.totalRelToCreate, ', added: ', add);
+};
+
+var cosSimTransactionRequest = function (n4jState, docNodes) {
+  n4jState.calculatingCosSim = true;
+  n4jState.totalRelToCreate = ((docNodes.length-1) * (docNodes.length-1) + (docNodes.length-1)) / 2;
+  n4jState.createdRel = 0;
+  n4jState.docNodes = docNodes;
+
+  for (var i = 0; i < docNodes.length-1; i++) {
+      cosSimQuery = createCosSimQueryTransaction(docNodes, i);
+      recursiveCosSimRequest(cosSimQuery, n4jState, i);
+  }
+};
 
 // Creates tfidf properties, creates vectors and cosine similarity
 var cosineSimilarityInsertion = function(url) {
@@ -477,37 +551,20 @@ var cosineSimilarityInsertion = function(url) {
   // has create unique
   // var cosSimQuery = { query: "MATCH (d1:Document)-[x:HAS]->(w:Word)<-[y:HAS]-(d2:Document) WITH SUM(x.TFIDF * y.TFIDF) AS xyDotProduct, d1.vector AS xMagnitude, d2.vector AS yMagnitude, d1, d2 CREATE UNIQUE (d1)-[s:SIMILARITY]-(d2) SET s.similarity = xyDotProduct / (xMagnitude * yMagnitude)"};
   // var cosSimQuery = { query: "MATCH (d1:Document)-[x:HAS]->(w:Word)<-[y:HAS]-(d2:Document) WITH SUM(x.TFIDF * y.TFIDF) AS xyDotProduct, d1.vector AS xMagnitude, d2.vector AS yMagnitude, d1, d2 MERGE (d1)-[s:SIMILARITY]-(d2) ON CREATE SET s.similarity = xyDotProduct / (xMagnitude * yMagnitude) ON MATCH SET s.similarity = xyDotProduct / (xMagnitude * yMagnitude)"};
-  var cosSimQuery = {query: "MATCH (d1: Document) RETURN COUNT(d1)"};
+  // var query = 'START t1=node({ids}), t2=node({ids}) MATCH (t1), (t2) WHERE id(t1) < id(t2) MERGE (t1)-[r:CONNECT]-(t2) ON CREATE SET r.something = "CREATE" ON MATCH SET r.something = "MATCH" RETURN t1, r, t2';
+  // var cosSimQuery = {query: "MATCH (d: Document) RETURN COUNT(d)"}
+  // var cosSimQuery = {query: "MATCH (d1: Document) RETURN COUNT(d1)"};
   rest.postJson(url, tfidfQuery)
   .on("complete", function(result, response) {
     console.log("TFIDF Query Complete", result, "Starting Vector Query");
     rest.postJson(url, vectorQuery)
     .on("complete", function(result, response) {
-      var startTime = new Date();
       var docNodes = result.data[0][0];
       console.log("Vector Query Complete, docs: ", docNodes.length, ". Starting Cosine Similarity Query");
-      
-      var transactionURL = "http://localhost:7474/db/data/transaction/commit";
-      calculatingCosSim = true;
-      var total = ((docNodes.length-1) * (docNodes.length-1) + (docNodes.length-1)) / 2;
-      var count = 0;
-      for (var i = 0; i < docNodes.length-1; i++) {
-          cosSimQuery = createCosSimQueryTransaction(docNodes, i);
-          (function (add) {
-            rest.postJson(transactionURL, cosSimQuery)
-            .on("complete", function (result, response) {
-              count+=add;
-              console.log (Math.floor(count/total * 100), "%", ", raw: ", count, "/", total);
+      n4jState.startTime = new Date();
 
-              // if all relationships have been added/updated
-              if (count === total) {
-                calculatingCosSim = false;
-                console.log("\ncos sim time elapsed:\n", getTimeElapsed(startTime), "\n");
-              }
+      cosSimTransactionRequest(n4jState, docNodes);
 
-            });
-          })(docNodes.length-i-1);
-      }
       // .on("complete", function(result, response) {
       //   console.log("Cosine Similarity Query Complete", result);
       //   // Test Cosine Similarity fetcher
@@ -555,7 +612,11 @@ var isDocValid = function (doc, master, minUniqueWords, num) {
 
 // recursive function that inserts docs only when the previous document has been inserted
 var insertBatchRec = function (result, response, documentList, num) {
-  if (calculatingCosSim === true) { return; } // if we're calculating cos similarity, then don't batch insert, wait till next loop
+  // if we're calculating cos similarity, then don't batch insert, wait till next loop
+  if (n4jState.calculatingCosSim === true) { 
+    console.log("\n still calculating cos sim: ", n4jState.calculatingCosSim); 
+    return;
+  }
 
   // num is for debugging purposes, shows which queries goes with which results
   num = num || 0;
@@ -589,7 +650,7 @@ var insertBatchRec = function (result, response, documentList, num) {
       return; 
     }
   }
-  console.log("docs inserted/left: ", num + '/' + (documentList.length + num), ", valid doc: ", doc.title)
+  console.log("docs inserted/left: ", (num+1) + '/' + (documentList.length + (num+1)), ", valid doc: ", doc.title)
 
   // TODO
   // note, instead of popping off an item and and mutating original, maybe just count?
@@ -597,7 +658,6 @@ var insertBatchRec = function (result, response, documentList, num) {
 
   rest.postJson(batchURL, batchInsert(doc, 0, num+1).query)
     .on("complete", function (result, response) {
-      console.log();
       insertBatchRec(result, response, documentList, ++num);
     });
 };
@@ -680,6 +740,7 @@ module.exports.insertBatchRec = insertBatchRec;
 module.exports.masterDoclist = masterDoclist;
 module.exports.masterDict = masterDict;
 module.exports.isInNeo4j = isInNeo4j;
+module.exports.n4jState = n4jState;
 
 // REFERENCE
 /*
