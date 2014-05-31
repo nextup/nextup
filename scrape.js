@@ -89,9 +89,9 @@ var readabilityRequestCron = function (time, master) {
 };
 
 var popCron = function (time) {
-  time = time || '00 */1 * * * *';
+  time = time || '00 */2 * * * *';
   new CronJob(time, function(){
-    console.log('popCron readability every 1 min');
+    console.log('popCron readability every 2 min');
 
   /*
     If queryReadability is sucessful
