@@ -74,9 +74,9 @@ var scrapeQueue = rssQ.makeScrapeQueue();
  */
 
 var readabilityRequestCron = function (time, master) {
-  time = time || '00 */60 * * * *';
+  time = time || '00 */30 * * * *';
   new CronJob(time, function(){
-  console.log('populate rss every 60 mins');
+  console.log('populate rss every 30 mins');
 
   // populates the master rss queue which is independent of querying readability,
   /*
@@ -89,9 +89,9 @@ var readabilityRequestCron = function (time, master) {
 };
 
 var popCron = function (time) {
-  time = time || '00 */2 * * * *';
+  time = time || '00 */1 * * * *';
   new CronJob(time, function(){
-    console.log('popCron readability every 2 min');
+    console.log('popCron readability every 1 min');
 
   /*
     If queryReadability is sucessful
