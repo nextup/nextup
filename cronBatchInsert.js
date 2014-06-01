@@ -85,9 +85,9 @@ var testDir = jsonDir;
 // this cron job checks the json folder to see if there are newly added files to be inserted into the neo4j DB.
 // jsonfiles that have been inserted into the database are archived
 var startCron = function (time) {
-  time = time || "00 */30 * * * *";
+  time = time || "00 */15 * * * *";
   return new CronJob.CronJob(time, function () {
-    console.log( "every 30 mins execute checkDir");
+    console.log( "every 15 minutes execute checkDir");
     checkDir(testDir);
   }, null, true, "America/Los_Angeles");
 };

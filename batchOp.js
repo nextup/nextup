@@ -507,7 +507,7 @@ var recursiveCosSimRequest = function (cosSimQuery, n4jState, relCount, error) {
   .on("complete", function (result, response) {
     // if there is an error, recursively call same function again
     if (result.errors.length > 0) {
-      console.log("\n\n transaction error: \n", relCount, result.errors, "\n\n");
+      // console.log("\n\n transaction error: \n", relCount, result.errors, "\n\n");
       recursiveCosSimRequest(cosSimQuery, n4jState, relCount, true);
       return;
 
@@ -533,7 +533,8 @@ var cosSimLog = function (n4jState, add) {
 };
 
 var cosSimTransactionRequest = function (n4jState, docNodes) {
-  n4jState.calculatingCosSim = true;
+  // set the cos sim calculation state to true only if there are more than 2 doc nodes
+  if (docNodes.length > 2 ) { n4jState.calculatingCosSim = true; }
   n4jState.totalRelToCreate = ((docNodes.length-1) * (docNodes.length-1) + (docNodes.length-1)) / 2;
   n4jState.createdRel = 0;
   n4jState.docNodes = docNodes;
@@ -562,6 +563,7 @@ var cosineSimilarityInsertion = function(url) {
       var docNodes = result.data[0][0];
       console.log("Vector Query Complete, docs: ", docNodes.length, ". Starting Cosine Similarity Query");
       n4jState.startTime = new Date();
+      console.log('cos sim query start time: ', n4jState.startTime);
 
       cosSimTransactionRequest(n4jState, docNodes);
 
